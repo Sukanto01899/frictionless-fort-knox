@@ -1,21 +1,29 @@
-import { useState } from 'react';
-import { openContractCall } from '@stacks/connect';
+import { useEffect, useState } from 'react';
 import { bufferCV } from '@stacks/transactions';
-import { userSession } from '../lib/stacks-auth';
+import { callContract, getWalletSnapshot, subscribeWallet } from '../lib/wallet';
 import { generateP256KeyPair, bufferToHex } from '../utils/crypto';
 import { CONTRACT_ADDRESS, CONTRACT_NAME } from '../utils/contract';
-import { NETWORK } from '../utils/network';
 
 const InitializeWallet = () => {
-    // Removed unused hook
     const [isInitializing, setIsInitializing] = useState(false);
     const [txId, setTxId] = useState<string | null>(null);
     const [pubKeyHex, setPubKeyHex] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [walletState, setWalletState] = useState(getWalletSnapshot());
+
+    useEffect(() => {
+        const unsubscribe = subscribeWallet(() => {
+            setWalletState(getWalletSnapshot());
+        });
+
+        return unsubscribe;
+    }, []);
 
     const handleInitialize = async () => {
         setIsInitializing(true);
         setError(null);
+        setTxId(null);
+        setPubKeyHex(null);
         try {
             // Generate a fresh P-256 key pair
             // In a real app, this would be stored securely or derived from WebAuthn
@@ -33,24 +41,15 @@ const InitializeWallet = () => {
             // and contract name `frictionless-fort-knox`
             const functionName = 'initialize';
 
-            await openContractCall({
-                contractAddress: CONTRACT_ADDRESS,
-                contractName: CONTRACT_NAME,
+            const response = await callContract({
+                contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
                 functionName,
                 functionArgs,
-                network: NETWORK,
-                onFinish: (data) => {
-                    console.log('Transaction finished:', data);
-                    setTxId(data.txId);
-                    setIsInitializing(false);
-                },
-                onCancel: () => {
-                    console.log('Transaction canceled');
-                    setError('Transaction canceled in wallet.');
-                    setIsInitializing(false);
-                },
-                userSession,
             });
+
+            const txid = 'txid' in response ? response.txid : undefined;
+            setTxId(txid ?? null);
+            setIsInitializing(false);
 
         } catch (error) {
             console.error('Initialization failed:', error);
@@ -59,7 +58,7 @@ const InitializeWallet = () => {
         }
     };
 
-    if (!userSession.isUserSignedIn()) {
+    if (!walletState.connected) {
         return (
             <section className="panel panel--disabled">
                 <div className="panel__header">

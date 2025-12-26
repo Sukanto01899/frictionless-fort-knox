@@ -5,3 +5,4 @@ const normalized = networkName === 'mainnet' ? 'mainnet' : 'testnet';
 
 export const NETWORK = createNetwork(normalized);
 export const NETWORK_LABEL = normalized === 'mainnet' ? 'Mainnet' : 'Testnet';
+export const NETWORK_NAME = normalized;

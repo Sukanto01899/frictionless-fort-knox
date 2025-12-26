@@ -1,57 +1,74 @@
-import { useState, useEffect } from 'react';
-import { userSession, authenticate } from '../lib/stacks-auth';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    connectWallet,
+    disconnectWallet,
+    getWalletSnapshot,
+    subscribeWallet,
+    walletConnectConfigured,
+} from '../lib/wallet';
 import { NETWORK_LABEL } from '../utils/network';
 
-// Configure the app with permissions
-// Removed local appConfig
-// Create a UserSession object
-// Removed local userSession
-
 const ConnectWallet = () => {
-    const [userData, setUserData] = useState<any>(null);
+    const [walletState, setWalletState] = useState(getWalletSnapshot());
+    const [isConnecting, setIsConnecting] = useState(false);
+    const [connectingProvider, setConnectingProvider] = useState<'stacks' | 'walletconnect' | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const handleConnect = () => {
-        authenticate();
+    const addressLabel = useMemo(() => {
+        if (!walletState.connected) {
+            return 'Not connected';
+        }
+        return walletState.stxAddress ?? 'Address unavailable';
+    }, [walletState.connected, walletState.stxAddress]);
+
+    const handleConnect = async (provider: 'stacks' | 'walletconnect') => {
+        setIsConnecting(true);
+        setConnectingProvider(provider);
+        setError(null);
+        try {
+            await connectWallet(provider);
+            setWalletState(getWalletSnapshot());
+            setIsModalOpen(false);
+        } catch (connectError) {
+            console.error('Wallet connection failed:', connectError);
+            setError(connectError instanceof Error ? connectError.message : 'Wallet connection failed.');
+        } finally {
+            setIsConnecting(false);
+            setConnectingProvider(null);
+        }
     };
 
     const handleSignOut = () => {
-        userSession.signUserOut();
-        setUserData(null);
+        disconnectWallet();
+        setWalletState(getWalletSnapshot());
     };
 
     useEffect(() => {
-        let cancelled = false;
+        const unsubscribe = subscribeWallet(() => {
+            setWalletState(getWalletSnapshot());
+        });
 
-        const hydrateSession = async () => {
-            if (userSession.isSignInPending()) {
-                await userSession.handlePendingSignIn();
-            }
-
-            if (!cancelled && userSession.isUserSignedIn()) {
-                setUserData(userSession.loadUserData());
-            }
-        };
-
-        hydrateSession();
-
-        return () => {
-            cancelled = true;
-        };
+        return unsubscribe;
     }, []);
-
-    const addresses = userData?.profile?.stxAddress;
 
     return (
         <section className="panel">
             <div className="panel__header">
                 <span className="eyebrow">Identity</span>
                 <h2>Connect Wallet</h2>
-                <p className="panel__sub">Link your Stacks account to authorize on-chain actions.</p>
+                <p className="panel__sub">Choose Stacks Connect or WalletConnect to authorize on-chain actions.</p>
             </div>
-            {!userData ? (
-                <button className="btn btn--primary" onClick={handleConnect}>
-                    Connect Wallet
-                </button>
+            {!walletState.connected ? (
+                <div className="panel__body">
+                    <button className="btn btn--primary" onClick={() => setIsModalOpen(true)} disabled={isConnecting}>
+                        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                    </button>
+                    {!walletConnectConfigured && (
+                        <p className="helper-text">Add `VITE_WALLETCONNECT_PROJECT_ID` to enable WalletConnect.</p>
+                    )}
+                    {error && <p className="helper-text">{error}</p>}
+                </div>
             ) : (
                 <div className="panel__body">
                     <div className="status">
@@ -61,15 +78,7 @@ const ConnectWallet = () => {
                     <div className="kv-list">
                         <div className="kv">
                             <span>{NETWORK_LABEL}</span>
-                            <span className="mono">
-                                {NETWORK_LABEL === 'Mainnet' ? addresses?.mainnet ?? 'Unavailable' : addresses?.testnet ?? 'Unavailable'}
-                            </span>
-                        </div>
-                        <div className="kv">
-                            <span>{NETWORK_LABEL === 'Mainnet' ? 'Testnet' : 'Mainnet'}</span>
-                            <span className="mono">
-                                {NETWORK_LABEL === 'Mainnet' ? addresses?.testnet ?? 'Unavailable' : addresses?.mainnet ?? 'Unavailable'}
-                            </span>
+                            <span className="mono">{addressLabel}</span>
                         </div>
                     </div>
                     {NETWORK_LABEL === 'Testnet' && (
@@ -85,6 +94,50 @@ const ConnectWallet = () => {
                     <button className="btn btn--ghost" onClick={handleSignOut}>
                         Sign Out
                     </button>
+                </div>
+            )}
+            {isModalOpen && !walletState.connected && (
+                <div
+                    className="modal-backdrop"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Choose wallet"
+                    onClick={() => setIsModalOpen(false)}
+                >
+                    <div className="modal" onClick={(event) => event.stopPropagation()}>
+                        <div className="modal__header">
+                            <div>
+                                <span className="eyebrow">Wallet</span>
+                                <h3>Choose a provider</h3>
+                                <p className="panel__sub">Select Stacks Connect or WalletConnect to continue.</p>
+                            </div>
+                            <button
+                                className="btn btn--ghost btn--icon"
+                                onClick={() => setIsModalOpen(false)}
+                                aria-label="Close wallet selection"
+                            >
+                                x
+                            </button>
+                        </div>
+                        <div className="modal__body">
+                            <div className="wallet-actions">
+                                <button className="btn btn--primary" onClick={() => handleConnect('stacks')} disabled={isConnecting}>
+                                    {connectingProvider === 'stacks' ? 'Connecting...' : 'Connect with Stacks'}
+                                </button>
+                                <button
+                                    className="btn btn--ghost"
+                                    onClick={() => handleConnect('walletconnect')}
+                                    disabled={isConnecting || !walletConnectConfigured}
+                                >
+                                    {connectingProvider === 'walletconnect'
+                                        ? 'Connecting...'
+                                        : walletConnectConfigured
+                                            ? 'Connect with WalletConnect'
+                                            : 'WalletConnect not configured'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
         </section>

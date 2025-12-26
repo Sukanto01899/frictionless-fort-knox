@@ -1,35 +1,40 @@
-import { useState } from 'react';
-import { openContractCall } from '@stacks/connect';
+import { useEffect, useState } from 'react';
 import { bufferCV } from '@stacks/transactions';
-import { userSession } from '../lib/stacks-auth';
+import { callContract, getWalletSnapshot, subscribeWallet } from '../lib/wallet';
 import { CONTRACT_ADDRESS, CONTRACT_NAME } from '../utils/contract';
-import { NETWORK } from '../utils/network';
 
 export const TransactionSender = () => {
     const [status, setStatus] = useState<string | null>(null);
+    const [walletState, setWalletState] = useState(getWalletSnapshot());
 
-    const handleSend = () => {
+    useEffect(() => {
+        const unsubscribe = subscribeWallet(() => {
+            setWalletState(getWalletSnapshot());
+        });
+
+        return unsubscribe;
+    }, []);
+
+    const handleSend = async () => {
+        setStatus(null);
         const payload = new Uint8Array(128).fill(1);
         const signature = new Uint8Array(64).fill(2);
 
-        openContractCall({
-            contractAddress: CONTRACT_ADDRESS,
-            contractName: CONTRACT_NAME,
-            functionName: 'execute-action',
-            functionArgs: [bufferCV(payload), bufferCV(signature)],
-            network: NETWORK,
-            onFinish: (data) => {
-                console.log('Finished', data);
-                setStatus(`Transaction submitted: ${data.txId}`);
-            },
-            onCancel: () => {
-                setStatus('Transaction canceled in wallet.');
-            },
-            userSession,
-        });
+        try {
+            const response = await callContract({
+                contract: `${CONTRACT_ADDRESS}.${CONTRACT_NAME}`,
+                functionName: 'execute-action',
+                functionArgs: [bufferCV(payload), bufferCV(signature)],
+            });
+            const txid = 'txid' in response ? response.txid : undefined;
+            setStatus(txid ? `Transaction submitted: ${txid}` : 'Transaction submitted.');
+        } catch (error) {
+            console.error('Contract call failed:', error);
+            setStatus('Transaction canceled in wallet.');
+        }
     };
 
-    if (!userSession.isUserSignedIn()) {
+    if (!walletState.connected) {
         return (
             <section className="panel panel--disabled">
                 <div className="panel__header">

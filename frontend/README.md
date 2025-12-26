@@ -75,9 +75,11 @@ export default defineConfig([
 ## Stacks & Chainhooks
 
 This project integrates:
-- `@stacks/connect` for authentication (see `src/lib/stacks-auth`).
+- `@stacks/connect` for wallet connections (Stacks Connect + WalletConnect).
 - `@stacks/transactions` for transaction signing (see `src/lib/stacks-tx`).
 - `@hirosystems/chainhooks-client` for event listening (see `src/lib/chainhooks`).
+
+To enable WalletConnect, set `VITE_WALLETCONNECT_PROJECT_ID` in `frontend/.env`.
 
 ## Chainhooks Demo
 
