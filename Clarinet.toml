@@ -6,8 +6,8 @@ telemetry = false
 cache_dir = "./.cache"
 
 
-[contracts.frictionless-fort-knox]
-path = "contracts/frictionless-fort-knox.clar"
+[contracts.v3-frictionless-fort-knox]
+path = "contracts/v3-frictionless-fort-knox.clar"
 clarity_version = 4
 epoch = "3.3"
 

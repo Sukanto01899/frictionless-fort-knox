@@ -106,7 +106,7 @@ set CHAINHOOKS_API_KEY=your_key
 set CHAINHOOK_WEBHOOK_URL=https://your-public-url/webhook
 set VITE_STACKS_NETWORK=testnet
 set VITE_CONTRACT_ADDRESS=ST1...
-set VITE_CONTRACT_NAME=frictionless-fort-knox
+set VITE_CONTRACT_NAME=v3-frictionless-fort-knox
 node scripts/chainhooks-demo.mjs register
 ```
 

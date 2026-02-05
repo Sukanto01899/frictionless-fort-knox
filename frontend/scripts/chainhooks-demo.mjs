@@ -148,7 +148,7 @@ const registerChainhook = async () => {
     process.env.VITE_CONTRACT_ADDRESS ??
     process.env.CONTRACT_ADDRESS ??
     'SP1G4ZDXED8XM2XJ4Q4GJ7F4PG4EJQ1KKXRCD0S3K';
-  const contractName = process.env.VITE_CONTRACT_NAME ?? process.env.CONTRACT_NAME ?? 'frictionless-fort-knox';
+  const contractName = process.env.VITE_CONTRACT_NAME ?? process.env.CONTRACT_NAME ?? 'v3-frictionless-fort-knox';
   const contractIdentifier = `${contractAddress}.${contractName}`;
 
   const client = new ChainhooksClient({

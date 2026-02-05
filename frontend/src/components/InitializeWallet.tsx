@@ -38,7 +38,7 @@ const InitializeWallet = () => {
 
             // Inspect Clarinet.toml to get standard deployer address for devnet if possible,
             // or assume standard `ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM` 
-            // and contract name `frictionless-fort-knox`
+            // and contract name `v3-frictionless-fort-knox`
             const functionName = 'initialize';
 
             const response = await callContract({
